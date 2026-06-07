@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "preship"
+version = "0.1.2"
+description = "Hammer your FastAPI staging app before launch — find the inputs that crash it and get a copy-paste AI fix prompt for each. No API key needed."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "LEESEUNGKYU" }]
+keywords = ["fastapi", "testing", "fuzzing", "openapi", "api", "preflight"]
+# The only CLI runtime dependency is schemathesis (core drives the schemathesis console script
+# in the same venv as a subprocess). fastapi/uvicorn etc. stay in requirements.txt for the demo target.
+dependencies = ["schemathesis==4.20.3", "anthropic==0.105.2"]
+
+[project.urls]
+Homepage = "https://pypi.org/project/preship/"
+Source = "https://github.com/ghkfuddl1327-wq/preship"
+
+[project.scripts]
+preship = "ohs_preflight.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

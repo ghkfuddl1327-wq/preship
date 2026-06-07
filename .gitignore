@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+schemathesis-report/
+.env
+dryrun_apps/
+.schemathesis/
+.claude/

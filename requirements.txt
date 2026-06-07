@@ -1,0 +1,6 @@
+# Demo build dependencies (version-pinned).
+# Values = latest stable on PyPI (build date 2026-05-31), verified via `pip index versions`.
+schemathesis==4.20.3
+fastapi==0.136.3
+uvicorn[standard]==0.48.0
+pydantic==2.13.4
