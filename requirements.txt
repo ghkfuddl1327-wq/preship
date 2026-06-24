@@ -1,5 +1,5 @@
-# Demo build dependencies (version-pinned).
-# Values = latest stable on PyPI (build date 2026-05-31), verified via `pip index versions`.
+# S1 데모 빌드 의존성 — docs/S1_task.md(1) / docs/S1_spec.md §1.3에 따라 버전 핀.
+# 값 = PyPI 최신 안정(빌드 시점 2026-05-31), `pip index versions`로 확인.
 schemathesis==4.20.3
 fastapi==0.136.3
 uvicorn[standard]==0.48.0

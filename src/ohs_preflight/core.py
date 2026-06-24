@@ -45,7 +45,7 @@ def _level(check: str) -> str:
 
 @dataclass
 class Finding:
-    """One defect = (endpoint, failing check)."""
+    """One defect = (endpoint, failing check). The S1_spec §5 matrix is the classification basis."""
 
     method: str
     path: str
@@ -54,10 +54,33 @@ class Finding:
     response_summary: str  # response status + content-type + body summary
     severity: str = ""     # schemathesis failure type (extra info)
     level: str = "low"     # A: high (500/crash) | low (undocumented-contract / schema violation)
+    status: int = 0        # raw response status_code, used to reclassify documented 5xx
 
 
 class ScanError(RuntimeError):
     """The scan itself could not run (target unreachable, schemathesis missing, etc.)."""
+
+
+def _reclassify_documented_5xx(findings, spec):
+    """Documented 5xx in not_a_server_error -> downgrade to a separate low check.
+    spec is the OpenAPI dict. If spec is falsy, return findings unchanged (safe default)."""
+    import dataclasses
+    if not spec:
+        return findings
+    paths = spec.get("paths", {}) if isinstance(spec, dict) else {}
+    out = []
+    for f in findings:
+        if f.check == "not_a_server_error" and 500 <= f.status <= 599:
+            op = (paths.get(f.path, {}) or {}).get(f.method.lower(), {}) or {}
+            responses = op.get("responses", {}) or {}
+            keys = {str(k).upper() for k in responses.keys()}
+            documented = (str(f.status) in keys) or ("5XX" in keys) or ("DEFAULT" in keys)
+            if documented:
+                out.append(dataclasses.replace(
+                    f, check="documented_5xx_response", level="low"))
+                continue
+        out.append(f)
+    return out
 
 
 def scan(url: str, headers: list[str] | None = None) -> list[Finding]:
@@ -91,10 +114,15 @@ def scan(url: str, headers: list[str] | None = None) -> list[Finding]:
         findings = _parse(ndjson_path)
         # M10: exclude the verification well-known path (avoid self-reference). A(a): exclude
         # false-positive checks like positive_data_acceptance. Both are 'filter layers' — detection itself is unchanged.
-        return [
+        filtered = [
             f for f in findings
             if f.path != WELL_KNOWN_PATH and f.check not in EXCLUDED_CHECKS
         ]
+        try:
+            spec = fetch_openapi(url, headers)
+        except Exception:
+            spec = None
+        return _reclassify_documented_5xx(filtered, spec)
 
 
 def _find_schemathesis() -> str | None:
@@ -166,6 +194,10 @@ def _parse(ndjson_path: Path) -> list[Finding]:
             interaction = interactions.get(case_id, {})
             trigger = _trigger(method, path, case, interaction.get("request", {}))
             response_summary = _response_summary(interaction.get("response", {}))
+            try:
+                status_code = int(interaction.get("response", {}).get("status_code", 0) or 0)
+            except (TypeError, ValueError):
+                status_code = 0
 
             for c in failed:
                 name = c.get("name", "?")
@@ -182,6 +214,7 @@ def _parse(ndjson_path: Path) -> list[Finding]:
                     response_summary=response_summary,
                     severity=failure.get("type", ""),
                     level=_level(name),
+                    status=status_code,
                 ))
 
     findings.sort(key=lambda f: (f.path, f.method, f.check))

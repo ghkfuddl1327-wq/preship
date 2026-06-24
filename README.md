@@ -1,115 +1,246 @@
-# Preship
+# preship
 
-**Hammer your FastAPI staging app before launch — find the inputs that crash it, and get a fix for each.**
+**A pre-launch reliability check for FastAPI.** Point it at a running app — it pokes
+every documented endpoint with unexpected inputs and tells you what breaks: crashes,
+undocumented status codes, and responses that don't match their declared schema.
+Then it hands you a copy-paste prompt to fix each one with any AI.
 
-Give it one staging URL. Preship fuzzes every endpoint and tells you:
+> **preship is not a security scanner.** It finds reliability bugs (the 500s and contract
+> breaks your users would hit), not vulnerabilities. See [What it does NOT do](#what-it-does-not-do).
+> Saying this up front is the point: it does its one job well and is honest about the rest.
 
-- **What breaks** — unhandled 500s (the inputs that crash it), undocumented responses, and schema mismatches, grouped by pattern.
-- **How to fix it** — one copy-paste **fix prompt** per pattern, ready to drop into whichever AI you use (ChatGPT, Claude, Gemini, anything).
-
-No API key required. Finding the issues and getting the fix prompts works entirely without one.
+No API key needed to find issues and get fix prompts. (An optional key unlocks AI-written patches.)
 
 ---
 
-## 1. Install
+## What it does
 
-Requires Python 3.10+.
+- **Finds unhandled 500 crashes** — the inputs that make a handler throw instead of
+  returning a clean error. Missing validation, empty-list math, nested-body bugs,
+  async handlers, null dereferences. (Verified across unrelated real-world apps.)
+- **Flags undocumented status codes** — if an endpoint returns a code that isn't in its
+  OpenAPI spec, you'll know. Documented codes are correctly left alone.
+- **Catches response-schema mismatches** — when the body doesn't match the
+  `response_model` you declared (missing field, wrong type, null where it shouldn't be).
+- **Tells intended 5xx apart from real crashes** — a `503` you documented for maintenance
+  is shown as low-severity, not flagged as a crash.
+- **Gives you a fix** — one copy-paste prompt per problem, for ChatGPT, Claude, Gemini, anything.
+
+## What it does NOT do
+
+Being clear about the edges is how you can trust the rest:
+
+- **No security testing.** No auth-bypass, injection, IDOR, or data-leak detection. Even
+  an extra undeclared field leaking in a response isn't flagged — that's a security tool's job.
+- **Misses crashes that only fire on one magic value** (e.g. a bug that only triggers when
+  `code == 1337`). Black-box fuzzing can't guess arbitrary constants.
+- **Doesn't reach endpoints behind a login.** Anything behind `401/403` is out of scope
+  (passing a token with `--header` may help, but isn't guaranteed).
+- **Needs an app that actually starts** and serves `/openapi.json`. If your app won't boot
+  without a database, secrets, or model files, preship can't scan it.
+- **Assumes a clean staging instance.** If your endpoints mutate stored state, scan against
+  a disposable instance so results stay consistent.
+
+---
+
+## Install
+
+You need **Python 3.10 or newer**. Check what you have:
+
+```bash
+python --version
+```
+
+If that prints `Python 3.10` or higher, install preship:
 
 ```bash
 pip install preship
 ```
 
-This adds the `preship` command:
+Then confirm it's ready:
 
 ```bash
 preship --help
 ```
 
-## 2. Point it at a staging URL + add an ownership-check route
+If you see the help text, you're done — skip to [Quick start](#quick-start-about-60-seconds).
 
-Preship only scans URLs **you own**, so it can't be pointed at someone else's server. Before the
-first scan you prove the URL is yours — once — by adding a single verification route to your app.
+### If something went wrong
 
-Run a scan once and Preship prints **your token** and **the exact route code to paste**. Drop the
-token into the snippet below, add it to your app, and redeploy.
+Installation is where most people get stuck, so here are the usual fixes:
+
+- **`python: command not found`** — try `python3` and `pip3` instead of `python` and `pip`.
+- **`pip: command not found`** — run `python -m pip install preship` instead.
+- **Your Python is older than 3.10** — install a newer Python from
+  [python.org/downloads](https://www.python.org/downloads/), then try again.
+- **`preship: command not found` after install succeeded** — your install location isn't on
+  your PATH. Run it via Python directly: `python -m ohs_preflight.cli --help`.
+- **Permission errors** — don't use `sudo`. Install just for you: `pip install --user preship`,
+  or better, use a virtual environment (below).
+
+### The clean way (recommended): a virtual environment
+
+A virtual environment keeps preship and its dependencies separate from the rest of your
+system, which avoids most of the problems above:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate      # on Windows: .venv\Scripts\activate
+pip install preship
+preship --help
+```
+
+### Still stuck? Let an AI walk you through it
+
+If none of that worked, copy the prompt below, fill in the two blanks, and paste it into
+any AI chat (ChatGPT, Claude, Gemini). It will give you step-by-step commands for your exact
+setup — no need to understand any of this yourself:
+
+```
+I'm trying to install a Python command-line tool called "preship" (PyPI package name:
+preship) and I'm stuck. Please give me exact, copy-paste terminal commands to fix it,
+explained simply for a beginner.
+
+My operating system is: __________  (e.g. Windows 11 / macOS / Ubuntu Linux)
+When I run `pip install preship` I get this error / this happens:
+__________  (paste the full error message, or describe what you see)
+
+Assume I'm new to Python. Walk me through it one command at a time, and tell me how to
+check whether each step worked.
+```
+
+Whatever the AI tells you, the commands stay on your own machine — you're just installing a
+package, nothing is sent anywhere.
+
+---
+
+## Quick start (about 60 seconds)
+
+preship only scans apps **you own** — so it can't be aimed at someone else's server. You
+prove ownership once by adding a tiny route to your app. Here's the whole flow:
+
+**1. Run a scan.** The first time, it stops and prints your token + the exact code to add:
+
+```bash
+preship scan https://your-staging.example.com
+```
+
+**2. Add the verification route it shows you.** Paste the token it printed:
 
 ```python
-# Add this one route to your FastAPI app (anywhere below app = FastAPI())
+# anywhere below  app = FastAPI()
 from fastapi.responses import PlainTextResponse
 
 @app.get("/.well-known/preflight-verify")
 def preflight_verify():
-    return PlainTextResponse("paste the token that scan printed here")
+    return PlainTextResponse("the-token-preship-printed")
 ```
 
-> The first scan tells you the exact token and prints the route code too — no guessing, just copy
-> what it shows. The token is fixed per URL, so you only add this once.
+Redeploy your staging app so the route is live.
 
-## 3. Run the scan
+**3. Run the scan again.** This time it scans and reports:
 
 ```bash
 preship scan https://your-staging.example.com
 ```
 
-If your staging is behind auth, pass headers along:
+That's it. The token is fixed per URL, so you only add the route once.
 
-```bash
-preship scan https://your-staging.example.com --header "Authorization: Bearer <token>"
-```
-
-## 4. Reading the results
-
-The output has two parts.
-
-**(1) Findings report** — same-kind problems are grouped into patterns and tagged by severity:
-`[HIGH]` (the server crashes with a 500) or `[LOW]` (response-contract mismatch). Each pattern
-lists the affected endpoints and the actual request → response Preship observed.
-
-**(2) AI fix prompts** — one prompt block per pattern. **Copy a block whole and paste it into
-whichever AI you use**, and you get a likely cause, a FastAPI fix, and an explanation. The prompts
-contain only what the scanner observed (never your source code) and aren't tied to any specific AI.
-
-> **Beta:** the AI fix prompts are free during beta. Features and policy may change at general availability.
-
-> Apply a fix and run `preship scan` again to confirm the pattern is gone.
+> Behind auth? Pass headers through to every request:
+> ```bash
+> preship scan https://your-staging.example.com --header "Authorization: Bearer <token>"
+> ```
 
 ---
 
-## Advanced (optional): auto-generated patch drafts
+## What the output looks like
 
-Want auto-generated patch drafts too? Put **your own** Anthropic API key in **your own**
-environment and scan. Without it, the fix prompts above still work — the key is entirely optional.
+```
+3 defect(s) / 2 pattern(s) / 2 endpoint(s) (severity: high first):
+
+[HIGH] not_a_server_error — 1 endpoint(s)
+  Affected endpoints:
+    - GET /items/{item_id}
+  Example: GET /items/-1300  →  500 Internal Server Error
+
+[LOW] status_code_conformance — 2 endpoint(s)
+  Affected endpoints:
+    - GET /items/{item_id}
+    - POST /orders
+```
+
+Each block is one **pattern** (a kind of problem), listing every endpoint it affects.
+
+---
+
+## Understanding the results
+
+| check | severity | what it means |
+|-------|----------|---------------|
+| `not_a_server_error` | **HIGH** | An undocumented 500 — a real, unhandled crash on some input. Fix these first. |
+| `documented_5xx_response` | LOW | A 5xx you *did* document (e.g. maintenance). Shown for review; likely intended. |
+| `status_code_conformance` | LOW | Returned a status code that isn't in your OpenAPI spec. Document it or change it. |
+| `response_schema_conformance` | LOW | The response body doesn't match the `response_model` you declared. |
+
+**HIGH** = something crashes; fix before launch. **LOW** = a contract gap; worth tidying.
+
+---
+
+## Fixing what it finds (no experience needed)
+
+You don't have to figure out the fix yourself. After the report, preship prints a
+**ready-made prompt** for each problem. You:
+
+1. Copy the whole prompt block for a problem.
+2. Paste it into any AI chat — ChatGPT, Claude, Gemini, whatever you use.
+3. It explains the cause and gives you the corrected FastAPI code.
+
+The prompt already contains the failing request, the response, and what to do — so the AI
+has everything it needs. No security or testing knowledge required on your part.
+
+*(If you set an `ANTHROPIC_API_KEY`, preship can also generate the patch for you directly.
+Optional — the copy-paste prompts work with no key at all.)*
+
+---
+
+## Using it in CI (for the gate-keepers)
+
+preship's exit codes let you block a release when there are defects:
+
+| exit code | meaning | typical CI action |
+|-----------|---------|-------------------|
+| `0` | scan ran, no defects | pass |
+| `1` | scan ran, defects found | **fail the build** (this is the gate) |
+| `2` | scan couldn't run (target unreachable, schemathesis missing) | surface as an error, distinct from defects |
+| `3` | ownership unverified — **no external request was sent** | fix verification, then retry |
+
+The ownership check (exit `3`) runs *first*: if the URL isn't proven yours, preship sends
+no scan, no `/openapi.json` fetch, no AI call. Safe by default.
 
 ```bash
-export ANTHROPIC_API_KEY="sk-ant-..."   # your key. The default beta path needs no key — the prompts alone are enough.
-preship scan https://your-staging.example.com
+# fail the pipeline if preship finds anything
+preship scan "$STAGING_URL" || exit 1
 ```
 
 ---
 
-## Try it on the included demo
+## How it works (under the hood)
 
-This repo ships a deliberately buggy FastAPI app at `fixtures/demo_app_buggy.py` — seven endpoints,
-six with planted defects and one clean control. Run it locally and point Preship at it to see a real
-findings report without touching your own API:
-
-```bash
-pip install fastapi "uvicorn[standard]"
-uvicorn fixtures.demo_app_buggy:app --port 8000
-# in another terminal:
-preship scan http://127.0.0.1:8000
-```
+preship fetches your `/openapi.json`, then runs property-based fuzzing
+([schemathesis](https://schemathesis.readthedocs.io/)) against every documented endpoint
+with `--mode positive` (valid-shaped inputs that probe edge cases). It reads the results,
+classifies each failure, and formats the report. It judges behavior over HTTP only — it
+never reads your source code.
 
 ---
 
 ## License
 
-Preship is released under the **Business Source License 1.1 (BUSL-1.1)**.
+preship is released under the **Business Source License 1.1 (BUSL-1.1)**.
 
-- You may use Preship freely — including in **commercial, staging, and live environments** — to test,
-  diagnose, or improve the reliability of your own APIs.
-- The only restriction: you may **not** repackage Preship as a competing hosted or managed
-  reliability/fuzz-testing service.
-- On **2030-06-07**, this version automatically converts to the **Apache License 2.0**.
+In plain terms: you can **use, copy, and modify** it freely for your own development and
+internal purposes, including commercial use. The one restriction is that you can't offer
+preship itself as a competing hosted/commercial product. On the **Change Date**, it converts
+to **Apache 2.0** (fully open source).
 
-See the [LICENSE](./LICENSE) file for the full text.
+See [LICENSE](LICENSE) for the exact terms — that text governs, not this summary.

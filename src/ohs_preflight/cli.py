@@ -30,6 +30,7 @@ _PROBLEM = {
     "status_code_conformance": "The endpoints below return status codes that aren't documented in the OpenAPI spec.",
     "response_schema_conformance": "The response bodies of the endpoints below don't satisfy the declared response_model schema.",
     "content_type_conformance": "The endpoints below respond with a different format than the declared content-type.",
+    "documented_5xx_response": "These endpoints return a 5xx status that IS documented in the OpenAPI spec - likely intended (e.g. maintenance/gateway). Shown for review, not an unhandled crash.",
 }
 
 

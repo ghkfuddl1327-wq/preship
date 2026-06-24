@@ -1,32 +1,24 @@
 Business Source License 1.1
 
-Licensor:             LEESEUNGKYU
-Licensed Work:        preship (all versions). The Licensed Work is
-                      © 2026 LEESEUNGKYU.
-Additional Use Grant: You may make production use of the Licensed Work,
-                      including in commercial, staging, and live
-                      environments, to test, diagnose, or improve the
-                      reliability of your own APIs or software. You may NOT
-                      offer the Licensed Work (or a modified version of it)
-                      to third parties as a hosted, embedded, or managed
-                      service whose primary value is the API reliability or
-                      fuzz-testing functionality of the Licensed Work, in a
-                      manner that competes with a paid or hosted version of
-                      the Licensed Work offered by the Licensor.
-Change Date:          2030-06-07
+Parameters
+
+Licensor:             Lee Ryeong
+Licensed Work:        preship
+                      The Licensed Work is (c) 2026 Lee Ryeong.
+Additional Use Grant: None.
+Change Date:          2030-06-22
 Change License:       Apache License, Version 2.0
 
------------------------------------------------------------------------------
+For information about alternative licensing arrangements for the Licensed Work,
+please contact the Licensor.
 
-License text copyright © 2017 MariaDB Corporation Ab, All Rights Reserved.
-"Business Source License" is a trademark of MariaDB Corporation Ab.
+-----------------------------------------------------------------------------
 
 Terms
 
 The Licensor hereby grants you the right to copy, modify, create derivative
 works, redistribute, and make non-production use of the Licensed Work. The
-Licensor may make an Additional Use Grant, above, permitting limited
-production use.
+Licensor may make an Additional Use Grant, above, permitting limited production use.
 
 Effective on the Change Date, or the fourth anniversary of the first publicly
 available distribution of a specific version of the Licensed Work under this
@@ -62,3 +54,28 @@ AN "AS IS" BASIS. LICENSOR HEREBY DISCLAIMS ALL WARRANTIES AND CONDITIONS,
 EXPRESS OR IMPLIED, INCLUDING (WITHOUT LIMITATION) WARRANTIES OF
 MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, AND
 TITLE.
+
+MariaDB hereby grants you permission to use this License's text to license
+your works, and to refer to it using the trademark "Business Source License",
+as long as you comply with the Covenants of Licensor below.
+
+Covenants of Licensor
+
+In consideration of the right to use this License's text and the "Business
+Source License" name and trademark, Licensor covenants to MariaDB, and to all
+other recipients of the licensed work to be provided by Licensor:
+
+1. To specify as the Change License the GPL Version 2.0 or any later version,
+   or a license that is compatible with GPL Version 2.0 or a later version,
+   where "compatible" means that software provided under the Change License can
+   be included in a program with software provided under GPL Version 2.0 or a
+   later version. Licensor may specify additional Change Licenses without
+   limitation.
+
+2. To either: (a) specify an additional grant of rights to use that does not
+   impose any additional restriction on the right granted in this License, as
+   the Additional Use Grant; or (b) insert the text "None".
+
+3. To specify a Change Date.
+
+4. Not to modify this License in any other way.
